@@ -567,7 +567,7 @@
             width: 0%;
             transition: width 0.1s ease;
         }
-
+        
         /* ============= SCROLL INDICATOR ============= */
         .scroll-indicator {
             position: fixed;
@@ -965,15 +965,15 @@
                 './3D Models/Pattern_01/Red_cloth.png',
                 './3D Models/Pattern_02/Bckground_look05.png',
                 './3D Models/Pattern_01/White_cloth.png',
-               
-               
-               
-                
-               
             ];
 
             const images = [];
             let imagesLoaded = 0;
+                let scrollProgress = 0;
+                let lastScrollTime = 0;
+                let scrollSpeed = 0;
+                let lastScrollProgress = 0;
+                let clock = new THREE.Clock();
 
             const initSlider = () => {
                 // --- THREE.JS SCENE SETUP ---
@@ -986,192 +986,244 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-                // --- GEOMETRY & CURVATURE ---
-                const geometryWidth = 12; // reduced width
-                const geometryHeight = 80;
-                const verticalCurvature = 20;
-                const horizontalCurvature = 15;
-                const segments = 200;
+                // --- 3D CYLINDER GALLERY SETUP ---
+                const imageMeshes = [];
+                const imageHeight = 25; // Increased spacing for proper frame exit
+                const maxRotateX = 25; // degrees
+                const maxTranslateZ = 150; // pixels
+                const minScale = 0.7;
+                const maxScale = 1.4;
+                const centerScale = 1.2;
 
-                const geometry = new THREE.PlaneGeometry(geometryWidth, geometryHeight, segments, segments);
-                const originalPositions = new Float32Array(geometry.attributes.position.array);
-                const curvedPositions = new Float32Array(originalPositions);
-
-                // Pre-calculate the fully curved state
-                for (let i = 0; i < originalPositions.length; i += 3) {
-                    const x = originalPositions[i];
-                    const y = originalPositions[i + 1];
-                    const zVertical = -(y * y) / verticalCurvature;
-                    const zHorizontal = -(x * x) / horizontalCurvature;
-                    curvedPositions[i + 2] = zVertical + zHorizontal;
-                }
-
-                // --- DYNAMIC TEXTURE ON A CANVAS ---
-                const slides = imageSources.length;
-                const slideHeight = 600; // increased for taller images
-                const slideGap = 60;     // increased spacing between slides
-                const textureHeight = 16000; // accommodate larger layout
-                // Match texture width to geometry aspect ratio for proper image display
-                const textureWidth = Math.floor(textureHeight * (geometryWidth / geometryHeight)); 
-
-                const textureCanvas = document.createElement('canvas');
-                textureCanvas.width = textureWidth;
-                textureCanvas.height = textureHeight;
-                const ctx = textureCanvas.getContext('2d');
-
-                const texture = new THREE.CanvasTexture(textureCanvas);
-                texture.wrapS = THREE.RepeatWrapping;
-                texture.wrapT = THREE.RepeatWrapping;
-                texture.minFilter = THREE.LinearFilter;
-                
-                const material = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    side: THREE.DoubleSide,
+                // --- ANIMATED GRADIENT BACKGROUND ---
+                const gradientGeometry = new THREE.PlaneGeometry(50, 50);
+                const gradientMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        time: { value: 0 },
+                        scrollSpeed: { value: 0 }
+                    },
+                    vertexShader: `
+                        varying vec2 vUv;
+                        void main() {
+                            vUv = uv;
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        uniform float time;
+                        uniform float scrollSpeed;
+                        varying vec2 vUv;
+                        
+                        void main() {
+                            vec2 uv = vUv - 0.5;
+                            
+                            // Create multiple gradient layers
+                            float wave1 = sin(uv.x * 3.0 + time * 0.5 + scrollSpeed * 2.0) * 0.5 + 0.5;
+                            float wave2 = sin(uv.y * 2.0 + time * 0.3 + scrollSpeed * 1.5) * 0.5 + 0.5;
+                            float wave3 = sin((uv.x + uv.y) * 1.5 + time * 0.7 + scrollSpeed * 3.0) * 0.5 + 0.5;
+                            
+                            // Warm gradient colors
+                            vec3 color1 = vec3(1.0, 0.4, 0.2); // Warm orange
+                            vec3 color2 = vec3(0.8, 0.2, 0.6); // Deep pink
+                            vec3 color3 = vec3(0.3, 0.1, 0.8); // Deep purple
+                            vec3 color4 = vec3(0.9, 0.6, 0.1); // Golden yellow
+                            
+                            // Mix colors based on waves
+                            vec3 finalColor = mix(
+                                mix(color1, color2, wave1),
+                                mix(color3, color4, wave2),
+                                wave3
+                            );
+                            
+                            // Add scroll-speed responsive intensity
+                            float intensity = 0.3 + scrollSpeed * 0.4;
+                            finalColor *= intensity;
+                            
+                            // Add subtle pulsing
+                            float pulse = sin(time * 2.0 + scrollSpeed * 5.0) * 0.1 + 0.9;
+                            finalColor *= pulse;
+                            
+                            gl_FragColor = vec4(finalColor, 1.0);
+                        }
+                    `
                 });
+                
+                const gradientMesh = new THREE.Mesh(gradientGeometry, gradientMaterial);
+                gradientMesh.position.z = -20; // Behind the images
+                scene.add(gradientMesh);
 
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.rotation.set(-0.3, 0, 0);
-                mesh.scale.set(1.25, 1.25, 1);
-                scene.add(mesh);
-
-                // --- CAMERA POSITION ---
-                camera.position.set(0, 5, 12.5);
-                camera.lookAt(0, 0, 0);
-
-                // --- SCROLLING & ANIMATION STATE ---
-                let scrollOffset = 0;
-                const total3DHeight = slides * (slideHeight + slideGap);
-                let scrollStopTimer;
-                let targetCurveAmount = 1;
-                let currentCurveAmount = 1;
-
-                const FLATTEN_LERP_FACTOR = 0.4;
-                const CURVE_LERP_FACTOR = 0.4;
-
-                function updateGeometry(curveAmount) {
+                // Create image meshes with professional rounded corners
+                imageSources.forEach((src, index) => {
+                    // Create rounded rectangle using RoundedBoxGeometry approach
+                    const geometry = new THREE.PlaneGeometry(12, 8, 128, 128); // Very high resolution
+                    
+                    // Professional corner rounding algorithm
                     const positions = geometry.attributes.position.array;
-
-                    for (let i = 0; i < positions.length; i++) {
-                        positions[i] = originalPositions[i] + (curvedPositions[i] - originalPositions[i]) * curveAmount;
+                    const width = 12;
+                    const height = 8;
+                    const radius = 0.8; // Smaller, more professional radius
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        const x = positions[i];
+                        const y = positions[i + 1];
+                        
+                        // Calculate distance from rectangle edges
+                        const distFromRight = width/2 - x;
+                        const distFromLeft = x + width/2;
+                        const distFromTop = height/2 - y;
+                        const distFromBottom = y + height/2;
+                        
+                        // Check if point is in corner region
+                        const inCorner = (distFromRight < radius && distFromTop < radius) ||
+                                       (distFromLeft < radius && distFromTop < radius) ||
+                                       (distFromRight < radius && distFromBottom < radius) ||
+                                       (distFromLeft < radius && distFromBottom < radius);
+                        
+                        if (inCorner) {
+                            // Determine which corner
+                            let cornerX, cornerY;
+                            if (distFromRight < radius && distFromTop < radius) {
+                                cornerX = width/2; cornerY = height/2; // Top right
+                            } else if (distFromLeft < radius && distFromTop < radius) {
+                                cornerX = -width/2; cornerY = height/2; // Top left
+                            } else if (distFromRight < radius && distFromBottom < radius) {
+                                cornerX = width/2; cornerY = -height/2; // Bottom right
+                            } else {
+                                cornerX = -width/2; cornerY = -height/2; // Bottom left
+                            }
+                            
+                            // Calculate distance from corner
+                            const distFromCorner = Math.sqrt(Math.pow(x - cornerX, 2) + Math.pow(y - cornerY, 2));
+                            
+                            if (distFromCorner > radius) {
+                                // Move point to rounded corner
+                                const angle = Math.atan2(y - cornerY, x - cornerX);
+                                positions[i] = cornerX + radius * Math.cos(angle);
+                                positions[i + 1] = cornerY + radius * Math.sin(angle);
+                            }
+                        }
                     }
                     
                     geometry.attributes.position.needsUpdate = true;
                     geometry.computeVertexNormals();
-                }
 
-                function updateTexture(offset) {
-                    ctx.clearRect(0, 0, textureCanvas.width, textureCanvas.height);
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(0, 0, textureCanvas.width, textureCanvas.height);
+                    const texture = new THREE.TextureLoader().load(src);
+                    
+                    // Simple card material
+                    const material = new THREE.MeshBasicMaterial({
+                        map: texture,
+                        side: THREE.DoubleSide,
+                        transparent: true
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.userData = { index, src };
+                    scene.add(mesh);
+                    imageMeshes.push(mesh);
+                });
 
-                    const totalSlidesToRender = slides + 3;
-                    let viewCenter = (-offset * textureHeight) % textureHeight;
-                    if (viewCenter < 0) viewCenter += textureHeight;
 
-                    for (let i = -1; i < totalSlidesToRender - 1; i++) {
-                        const slideIndex = ((i % slides) + slides) % slides;
-                        const img = images[slideIndex];
-                        
-                        const singleSlideTextureHeight = (slideHeight + slideGap) / total3DHeight * textureHeight;
-                        let yPos = (i * singleSlideTextureHeight + offset * textureHeight) % textureHeight;
-                        if (yPos < 0) yPos += textureHeight;
-                        
-                        const dist = Math.min(Math.abs(yPos - viewCenter), textureHeight - Math.abs(yPos - viewCenter));
-                        const maxBlurDistance = textureHeight / 3; 
-                        const maxBlurAmount = 10; 
-                        let blurAmount = (dist / maxBlurDistance) * maxBlurAmount;
-                        blurAmount = Math.min(blurAmount, maxBlurAmount);
+                // --- CAMERA POSITION ---
+                camera.position.set(0, 0, 15);
+                camera.lookAt(0, 0, 0);
 
-                        ctx.filter = `blur(${blurAmount}px)`;
+                // --- SMOOTH SCROLL HANDLER ---
+                const handleScroll = () => {
+                    const now = Date.now();
+                    if (now - lastScrollTime < 16) return; // ~60fps throttling
+                    lastScrollTime = now;
 
-                        const slideTextureHeight = slideHeight / total3DHeight * textureHeight;
-                        const imgAspectRatio = img.width / img.height;
-                        const slideSlotAspectRatio = textureWidth / slideTextureHeight;
-
-                        let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
-                        let destX = 0, destY = yPos - slideTextureHeight / 2;
-                        let destWidth = textureWidth, destHeight = slideTextureHeight;
-
-                        // File-specific no-crop contain mode for known cut images
-                        const src = imageSources[slideIndex] || '';
-                        const useContain = src.includes('37DDCEE6-4261-41ED-9FE5-5CF17EB81538.jpeg') || src.includes('IMG_3909.jpg');
-
-                        if (useContain) {
-                            // Contain: fit entire image, letterbox as needed
-                            const scale = Math.min(textureWidth / img.width, slideTextureHeight / img.height);
-                            const destWidthContain = img.width * scale;
-                            const destHeightContain = img.height * scale;
-                            destX = (textureWidth - destWidthContain) / 2;
-                            destY = yPos - slideTextureHeight / 2 + (slideTextureHeight - destHeightContain) / 2;
-                            destWidth = destWidthContain;
-                            destHeight = destHeightContain;
-                            sx = 0; sy = 0; sWidth = img.width; sHeight = img.height;
-                        } else {
-                            // Default cover-like crop to fill slot
-                            if (imgAspectRatio > slideSlotAspectRatio) {
-                                // Image is wider than slot - fit to height, crop width
-                                sHeight = img.height;
-                                sWidth = img.height * slideSlotAspectRatio;
-                                sx = (img.width - sWidth) / 2;
-                                sy = 0;
-                            } else {
-                                // Image is taller than slot - fit to width, crop height
-                                sWidth = img.width;
-                                sHeight = img.width / slideSlotAspectRatio;
-                                sx = 0;
-                                sy = (img.height - sHeight) / 2;
-                            }
-                        }
-
-                        if (!useContain) {
-                            // Ensure we don't crop too aggressively - maintain minimum visible area
-                            const minVisibleRatio = 0.7; // Show at least 70% of the image
-                            if (sWidth / img.width < minVisibleRatio) {
-                                sWidth = img.width * minVisibleRatio;
-                                sx = Math.max(0, (img.width - sWidth) / 2);
-                            }
-                            if (sHeight / img.height < minVisibleRatio) {
-                                sHeight = img.height * minVisibleRatio;
-                                sy = Math.max(0, (img.height - sHeight) / 2);
-                            }
-                        }
-
-                        ctx.drawImage(img, sx, sy, sWidth, sHeight, destX, destY, destWidth, destHeight);
-                        ctx.filter = 'none';
-                    }
-                    texture.needsUpdate = true;
-                }
-                
-                // --- MAIN ANIMATION LOOP ---
-                function animate() {
-                    let lerpFactor = targetCurveAmount < currentCurveAmount ? FLATTEN_LERP_FACTOR : CURVE_LERP_FACTOR;
-                    currentCurveAmount += (targetCurveAmount - currentCurveAmount) * lerpFactor;
-
-                    if (Math.abs(targetCurveAmount - currentCurveAmount) < 0.001) {
-                        currentCurveAmount = targetCurveAmount;
-                    }
-
-                    updateGeometry(currentCurveAmount);
-                    updateTexture(scrollOffset);
-                    renderer.render(scene, camera);
-
-                    requestAnimationFrame(animate);
-                }
-
-                // --- EVENT LISTENERS ---
-                lenis.on('scroll', (e) => {
                     const section = document.getElementById('third');
                     const rect = section.getBoundingClientRect();
                     const sectionProgress = Math.max(0, Math.min(1, -rect.top / (rect.height - window.innerHeight)));
                     
-                    scrollOffset = -sectionProgress;
-                    targetCurveAmount = 1;
+                    // Calculate scroll speed
+                    scrollSpeed = Math.abs(sectionProgress - lastScrollProgress) * 10; // Amplify for effect
+                    lastScrollProgress = sectionProgress;
+                    scrollProgress = sectionProgress;
+                };
 
-                    clearTimeout(scrollStopTimer);
-                    scrollStopTimer = setTimeout(() => {
-                        targetCurveAmount = 0;
-                    }, 150);
-                });
+                // --- 3D TRANSFORM CALCULATIONS ---
+                const getImageTransform = (index) => {
+                    const totalImages = imageSources.length;
+                    const centerIndex = scrollProgress * (totalImages - 1);
+                    const distanceFromCenter = index - centerIndex;
+                    
+                    // Make movement slightly faster when scrolling (but still slow overall)
+                    const speedMultiplier = 1 + scrollSpeed * 0.5; // 1x to 1.5x speed based on scroll
+                    
+                    let rotateX = 0;
+                    let translateZ = 0;
+                    let scale = 1;
+                    let opacity = 1;
+                    let translateY = -distanceFromCenter * imageHeight * 0.5 * speedMultiplier; // Increased spacing for frame exit
+                    
+                    if (Math.abs(distanceFromCenter) < 0.5) {
+                        // Center image - expanded and prominent
+                        const centerProgress = 1 - Math.abs(distanceFromCenter) * 2;
+                        scale = minScale + (centerScale - minScale) * centerProgress;
+                        rotateX = 0;
+                        translateZ = 0;
+                        opacity = 1;
+                        } else {
+                        // Off-center images - curved backward
+                        const curveIntensity = Math.min(Math.abs(distanceFromCenter), 3) / 3;
+                        rotateX = -maxRotateX * curveIntensity;
+                        translateZ = -maxTranslateZ * curveIntensity;
+                        scale = minScale + (1 - minScale) * (1 - curveIntensity);
+                        
+                        // Fade distant images
+                        const fadeDistance = 2;
+                        if (Math.abs(distanceFromCenter) > fadeDistance) {
+                            opacity = Math.max(0.1, 1 - (Math.abs(distanceFromCenter) - fadeDistance) * 0.3);
+                        }
+                    }
+                    
+                    // Smooth easing function
+                    const easeInOutCubic = (t) => {
+                        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    };
+                    
+                    // Apply easing to transformations
+                    const easedProgress = easeInOutCubic(Math.min(1, Math.abs(distanceFromCenter) / 2));
+                    rotateX *= easedProgress;
+                    translateZ *= easedProgress;
+                    
+                    return {
+                        translateY,
+                        rotateX,
+                        translateZ,
+                        scale,
+                        opacity,
+                        zIndex: Math.round(100 - Math.abs(distanceFromCenter) * 10)
+                    };
+                };
+                
+                // --- MAIN ANIMATION LOOP ---
+                function animate() {
+                    const elapsedTime = clock.getElapsedTime();
+                    
+                    // Update gradient background
+                    gradientMaterial.uniforms.time.value = elapsedTime;
+                    gradientMaterial.uniforms.scrollSpeed.value = scrollSpeed;
+                    
+                    // Update image transforms based on scroll
+                    imageMeshes.forEach((mesh, index) => {
+                        const transforms = getImageTransform(index);
+                        
+                        mesh.position.set(0, transforms.translateY, transforms.translateZ);
+                        mesh.rotation.set(transforms.rotateX * Math.PI / 180, 0, 0);
+                        mesh.scale.setScalar(transforms.scale);
+                        mesh.material.opacity = transforms.opacity;
+                        mesh.renderOrder = transforms.zIndex;
+                    });
+
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(animate);
+                }
+
+                // --- EVENT LISTENERS ---
+                lenis.on('scroll', handleScroll);
 
                 window.addEventListener('resize', () => {
                     camera.aspect = window.innerWidth / window.innerHeight;
