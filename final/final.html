@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Shader Tunnel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        /* Make the canvas fixed to the background */
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: block;
+            z-index: 1; /* Ensure canvas is behind images */
+        }
+        /* Create a scrollable area */
+        body {
+            height: 800vh; 
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+        /* Container for the image slides */
+        .slider-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px; /* Enable 3D transformations */
+            z-index: 2; /* Ensure images are on top of the canvas */
+            pointer-events: none; /* Allow scrolling through the container */
+        }
+        .slide {
+            position: absolute;
+            width: 400px;
+            height: 500px;
+            will-change: transform, opacity, scale; /* Optimize for animation */
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            opacity: 0; /* Start with slides hidden */
+        }
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- The canvas for our shader background -->
+    <canvas id="shader-canvas"></canvas>
+
+    <!-- The HTML elements for the images - reduced to 3 -->
+    <div class="slider-container">
+        <div class="slide"><img src="https://placehold.co/600x800/222/fff?text=Project+1" alt="Project 1"></div>
+        <div class="slide"><img src="https://placehold.co/600x800/333/fff?text=Project+2" alt="Project 2"></div>
+        <div class="slide"><img src="https://placehold.co/600x800/444/fff?text=Project+3" alt="Project 3"></div>
+        <div class="slide"><img src="https://placehold.co/600x800/555/fff?text=Project+4" alt="Project 4"></div>
+        <div class="slide"><img src="https://placehold.co/600x800/666/fff?text=Project+5" alt="Project 5"></div>
+        <div class="slide"><img src="https://placehold.co/600x800/777/fff?text=Project+6" alt="Project 6"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+        // --- SHADER BACKGROUND SETUP (PRESERVED) ---
+        const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
+        // --- NEW FRAGMENT SHADER FROM YOUR REACT CODE ---
+        const fragmentShader = `
+            uniform vec3 iResolution;
+            uniform float iTime;
+            uniform float iScroll;
+            
+            void mainImage( out vec4 o, vec2 I ) {
+                // Center the coordinates
+                vec2 uv = (I - iResolution.xy * 0.5) / iResolution.y;
+                
+                // Calculate distance from center
+                float dist = length(uv);
+                
+                // Animation offset - with even slower speed multipliers
+                float time = iTime * 0.5 + iScroll * 8.0; // Reduced scroll speed further
+                
+                // Create the tunnel depth effect
+                float z = 1.0 / (dist + 0.1) + time;
+                
+                // Create concentric rings pattern
+                float rings = sin(z * 30.0) * 0.5 + 0.5;
+                
+                // Create the segmented ring effect (rectangular segments in circles)
+                float angle = atan(uv.y, uv.x);
+                float segments = sin(angle * 16.0) * 0.5 + 0.5; // 16 segments per ring
+                
+                // Combine rings and segments
+                float pattern = rings * segments;
+                
+                // Create tunnel perspective - rings get smaller toward center
+                float perspective = smoothstep(0.0, 1.5, dist);
+                pattern *= perspective;
+                
+                // Create the brightness gradient - extremely bright center
+                float centerGlow = 1.0 / (dist * 3.0 + 0.1);
+                centerGlow = pow(centerGlow, 1.5);
+                
+                // Ultra bright center with smooth falloff
+                float brightness = centerGlow * pattern;
+                
+                // Add extra central brightness
+                float ultraCenter = exp(-dist * 8.0);
+                brightness += ultraCenter * 2.0;
+                
+                // Create the final intensity with proper contrast
+                float intensity = brightness;
+                
+                // Sharp falloff to black at edges
+                intensity *= (1.0 - smoothstep(0.6, 1.0, dist));
+                
+                // Clamp and enhance contrast
+                intensity = clamp(intensity, 0.0, 3.0);
+                intensity = pow(intensity, 0.7);
+                
+                o = vec4(intensity, intensity, intensity, 1.0);
+            }
+            
+            void main() {
+                mainImage(gl_FragColor, gl_FragCoord.xy);
+            }
+        `;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('shader-canvas'), antialias: true, alpha: false });
+        renderer.setClearColor(0x000000, 1);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const uniforms = {
+            iTime: { value: 0 },
+            iResolution: { value: new THREE.Vector3() },
+            iScroll: { value: 0.0 }
+        };
+
+        function updateResolution() {
+            const canvas = renderer.domElement;
+            uniforms.iResolution.value.set(canvas.width, canvas.height, 1);
+        }
+
+        const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        updateResolution();
+
+        // --- FINAL POLISHED IMAGE SLIDER LOGIC ---
+        const slides = document.querySelectorAll('.slide');
+        let currentScroll = 0;
+
+        window.addEventListener('scroll', () => {
+            const scrollPercentage = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+            currentScroll = scrollPercentage;
+            uniforms.iScroll.value = currentScroll;
+        });
+
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            // Reduced default animation speed further
+            uniforms.iTime.value = clock.getElapsedTime() * 1.0; 
+            renderer.render(scene, camera);
+
+            // Animate slides based on scroll with the final logic
+            const totalSlides = slides.length;
+            slides.forEach((slide, index) => {
+                const slideStart = index / totalSlides;
+                const slideDuration = 1 / totalSlides;
+                
+                // Calculate progress (0 to 1) within this slide's specific scroll section
+                const progress = (currentScroll - slideStart) / slideDuration;
+
+                // Only show and calculate for the active slide
+                if (progress >= 0 && progress <= 1) {
+                    // Z-Position: Longer travel — from farther back (-3000px) to past camera (800px)
+                    const zStart = -3000;
+                    const zEnd = 800;
+                    const z = zStart + (progress * (zEnd - zStart));
+
+                    // X-Position: Fixed on the left or right side.
+                    const xDirection = index % 2 === 0 ? 1 : -1; // Even slides on the right, odd on the left.
+                    const x = (window.innerWidth / 2) * 0.6 * xDirection; // Positioned 60% from the center
+
+                    // Opacity & Scale: Smoothly fade and scale in/out using a sine curve
+                    const ease = Math.sin(progress * Math.PI);
+                    const opacity = ease;
+                    const scale = 0.7 + ease * 0.3; // Scale from 0.7 to 1 and back to 0.7
+
+                    slide.style.opacity = opacity;
+                    slide.style.transform = `translate3d(${x}px, 0px, ${z}px) scale(${scale})`;
+                } else {
+                    // Hide slides that are not in their active section
+                    slide.style.opacity = 0;
+                }
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            updateResolution();
+        });
+
+        animate();
+    </script>
+</body>
+</html>
+

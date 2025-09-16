@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Image Scroll Slider</title>
+    <style>
+        /* Basic Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            color: #fff;
+            font-family: 'Helvetica', sans-serif;
+            overflow-x: hidden; /* Allow vertical scroll */
+        }
+
+        body {
+            height: 500vh; /* Create scrollable area */
+        }
+
+        /* Typography */
+        p {
+            font-size: 14px;
+            font-weight: 100;
+            opacity: 0.5;
+        }
+
+        .logo {
+            opacity: 1;
+        }
+
+        /* Layout */
+        nav, footer {
+            position: fixed;
+            width: 100%;
+            padding: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 2;
+        }
+
+        nav {
+            top: 0;
+        }
+
+        footer {
+            bottom: 0;
+        }
+
+        /* 3D Slider Styles */
+        .slider-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .webgl {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent; /* remove vignette */
+            pointer-events: none;
+            z-index: 1;
+            display: none; /* hide overlay for clean glass look */
+        }
+
+        /* Frameless fullscreen glass look */
+        .webgl {
+            box-shadow: none;
+            border-radius: 0;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+
+   
+
+    <div class="slider-wrapper">
+        <canvas class="webgl"></canvas>
+    </div>
+
+    <div class="overlay"></div>
+
+    <!-- Import Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+    
+    <!-- Main Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // SMOOTH SCROLLING
+            const lenis = new Lenis();
+            function raf(time) {
+              lenis.raf(time);
+              requestAnimationFrame(raf);
+            }
+            requestAnimationFrame(raf);
+
+            // --- IMAGE LOADING ---
+            const imageSources = [
+                '../3D Models/Pattern_01/Black_cloth.png',
+                '../3D Models/Pattern_02/Bckground_look01.png',
+                '../3D Models/Pattern_01/Green_cloth.png',
+                '../3D Models/Pattern_02/Bckground_look02.png',
+                '../3D Models/Pattern_01/Red_cloth.png',
+                '../3D Models/Pattern_02/Bckground_look03.png',
+                '../3D Models/Pattern_01/White_cloth.png',
+                '../3D Models/Pattern_02/Bckground_look04.png',
+                '../3D Models/Pattern_02/Bckground_look05.png',
+                
+            ];
+
+            // No slide titles; images only
+
+            const images = [];
+            let imagesLoaded = 0;
+
+            imageSources.forEach((src, index) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => {
+                    imagesLoaded++;
+                    if (imagesLoaded === imageSources.length) {
+                        initSlider();
+                    }
+                };
+                img.onerror = () => {
+                    console.warn('Image failed to load:', src);
+                    imagesLoaded++;
+                    if (imagesLoaded === imageSources.length) {
+                        initSlider();
+                    }
+                };
+                images[index] = img;
+            });
+
+
+            function initSlider() {
+                // --- THREE.JS SCENE SETUP ---
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({
+                    canvas: document.querySelector('.webgl'),
+                    antialias: true,
+                });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+                // --- GEOMETRY & CURVATURE ---
+                const geometryWidth = 12; // reduced width to match main page
+                const geometryHeight = 60;
+                const verticalCurvature = 20; 
+                const horizontalCurvature = 15;
+                const segments = 200;
+
+                const geometry = new THREE.PlaneGeometry(geometryWidth, geometryHeight, segments, segments);
+                const originalPositions = new Float32Array(geometry.attributes.position.array);
+                const curvedPositions = new Float32Array(originalPositions);
+
+                // Pre-calculate the fully curved state
+                for (let i = 0; i < originalPositions.length; i += 3) {
+                    const x = originalPositions[i];
+                    const y = originalPositions[i + 1];
+                    const zVertical = - (y * y) / verticalCurvature;
+                    const zHorizontal = - (x * x) / horizontalCurvature;
+                    curvedPositions[i + 2] = zVertical + zHorizontal;
+                }
+
+                // --- DYNAMIC TEXTURE ON A CANVAS ---
+                const slides = imageSources.length;
+                const slideHeight = 380; // taller images
+                const slideGap = 60; // larger gap
+                const textureHeight = 16000; // larger texture to fit all
+                const textureWidth = 2008; 
+
+                const canvas = document.createElement('canvas');
+                canvas.width = textureWidth;
+                canvas.height = textureHeight;
+                const ctx = canvas.getContext('2d');
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.minFilter = THREE.LinearFilter;
+                
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.rotation.set(-0.3, 0, 0);
+                mesh.scale.set(1.25, 1.25, 1); // make the screen feel larger
+                scene.add(mesh);
+
+                // --- CAMERA POSITION ---
+                camera.position.set(0, 5, 12.5); // move camera closer for bigger view
+                camera.lookAt(0, 0, 0);
+
+                // --- SCROLLING & ANIMATION STATE ---
+                let scrollOffset = 0;
+                const total3DHeight = slides * (slideHeight + slideGap);
+                let scrollStopTimer;
+                let targetCurveAmount = 1; // 1 = curved, 0 = flat
+                let currentCurveAmount = 1;
+
+                // --- Smoothing Parameters ---
+                // Use a larger lerp factor for faster flattening transitions
+                const FLATTEN_LERP_FACTOR = 0.4; // Increased for faster flattening
+                const CURVE_LERP_FACTOR = 0.4;    // Fast when scrolling
+
+                let isScrolling = false;
+
+                function updateGeometry(curveAmount) {
+                    const positions = geometry.attributes.position.array;
+
+                    for (let i = 0; i < positions.length; i++) {
+                        // Interpolate between the original flat position and the fully curved position
+                        positions[i] = originalPositions[i] + (curvedPositions[i] - originalPositions[i]) * curveAmount;
+                    }
+                    
+                    geometry.attributes.position.needsUpdate = true;
+                    geometry.computeVertexNormals();
+                }
+
+                function updateTexture(offset) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    const totalSlidesToRender = slides + 3;
+
+                    let viewCenter = (-offset * textureHeight) % textureHeight;
+                    if (viewCenter < 0) viewCenter += textureHeight;
+
+                    for (let i = -1; i < totalSlidesToRender - 1; i++) {
+                        const slideIndex = ((i % slides) + slides) % slides;
+                        const img = images[slideIndex];
+                        
+                        const singleSlideTextureHeight = (slideHeight + slideGap) / total3DHeight * textureHeight;
+                        let yPos = (i * singleSlideTextureHeight + offset * textureHeight) % textureHeight;
+                        if (yPos < 0) yPos += textureHeight;
+                        
+                        const dist = Math.min(Math.abs(yPos - viewCenter), textureHeight - Math.abs(yPos - viewCenter));
+                        const maxBlurDistance = textureHeight / 3; 
+                        const maxBlurAmount = 10; 
+                        let blurAmount = (dist / maxBlurDistance) * maxBlurAmount;
+                        blurAmount = Math.min(blurAmount, maxBlurAmount);
+
+                        ctx.filter = `blur(${blurAmount}px)`;
+
+                        const slideTextureHeight = slideHeight / total3DHeight * textureHeight;
+                        const imgAspectRatio = img.width / img.height;
+                        const slideSlotAspectRatio = textureWidth / slideTextureHeight;
+                        
+                        let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+
+                        if (imgAspectRatio > slideSlotAspectRatio) {
+                            sWidth = img.height * slideSlotAspectRatio;
+                            sx = (img.width - sWidth) / 2;
+                        } else {
+                            sHeight = img.width / slideSlotAspectRatio;
+                            sy = (img.height - sHeight) / 2;
+                        }
+
+                        const destY = yPos - slideTextureHeight / 2;
+                        
+                        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, destY, textureWidth, slideTextureHeight);
+                        
+                        ctx.filter = 'none';
+                    }
+                    texture.needsUpdate = true;
+                }
+                
+                // --- MAIN ANIMATION LOOP ---
+                function animate() {
+                    // Use different lerp factors for flattening and curving
+                    let lerpFactor = targetCurveAmount < currentCurveAmount ? FLATTEN_LERP_FACTOR : CURVE_LERP_FACTOR;
+                    currentCurveAmount += (targetCurveAmount - currentCurveAmount) * lerpFactor;
+
+                    // Snap to target if very close to avoid sluggishness
+                    if (Math.abs(targetCurveAmount - currentCurveAmount) < 0.001) {
+                        currentCurveAmount = targetCurveAmount;
+                    }
+
+                    updateGeometry(currentCurveAmount);
+                    updateTexture(scrollOffset); // Keep texture updated
+                    renderer.render(scene, camera);
+
+                    requestAnimationFrame(animate);
+                }
+
+                // --- EVENT LISTENERS ---
+                lenis.on('scroll', (e) => {
+                    scrollOffset = -e.progress;
+                    targetCurveAmount = 1; // Animate to curved when scrolling
+
+                    // Detect when scrolling stops
+                    clearTimeout(scrollStopTimer);
+                    scrollStopTimer = setTimeout(() => {
+                        targetCurveAmount = 0; // Animate to flat when scrolling stops
+                    }, 150);
+                });
+
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                });
+
+                // --- START THE EXPERIENCE ---
+                animate();
+            }
+        });
+    </script>
+</body>
+</html>
+
+

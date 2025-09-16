@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"/>
+<title>Cinematic Birthday</title>
+<link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+        @keyframes sweep-in-top-left {
+            0% {
+                transform: translate(-120%, -120%) skewX(-45deg) scale(1.2);
+                opacity: 0;
+                box-shadow: 0 0 50px rgba(255, 255, 255, 0.8), 0 0 100px rgba(255, 255, 255, 0.4);
+            }
+            30% {
+                transform: translate(-20%, -20%) skewX(-45deg) scale(1.1);
+                opacity: 0.9;
+                box-shadow: 0 0 80px rgba(255, 255, 255, 1), 0 0 150px rgba(255, 255, 255, 0.6);
+            }
+            70% {
+                transform: translate(5%, 5%) skewX(-45deg) scale(1.05);
+                opacity: 1;
+                box-shadow: 0 0 60px rgba(255, 255, 255, 0.9), 0 0 120px rgba(255, 255, 255, 0.5);
+            }
+            100% {
+                transform: translate(0, 0) skewX(-45deg) scale(1);
+                opacity: 1;
+                box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 60px rgba(0, 0, 0, 0.4);
+            }
+        }
+        @keyframes sweep-in-bottom-right {
+            0% {
+                transform: translate(120%, 120%) skewX(-45deg) scale(1.2);
+                opacity: 0;
+                box-shadow: 0 0 50px rgba(255, 255, 255, 0.8), 0 0 100px rgba(255, 255, 255, 0.4);
+            }
+            30% {
+                transform: translate(20%, 20%) skewX(-45deg) scale(1.1);
+                opacity: 0.9;
+                box-shadow: 0 0 80px rgba(255, 255, 255, 1), 0 0 150px rgba(255, 255, 255, 0.6);
+            }
+            70% {
+                transform: translate(-5%, -5%) skewX(-45deg) scale(1.05);
+                opacity: 1;
+                box-shadow: 0 0 60px rgba(255, 255, 255, 0.9), 0 0 120px rgba(255, 255, 255, 0.5);
+            }
+            100% {
+                transform: translate(0, 0) skewX(-45deg) scale(1);
+                opacity: 1;
+                box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 60px rgba(0, 0, 0, 0.4);
+            }
+        }
+        /* Four Corner Black Blocks Sweep Animation */
+        @keyframes sweep-block-top-left {
+            0% {
+                transform: translate(-100%, -100%) scale(1);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-5%, -5%) scale(1.02);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes sweep-block-top-right {
+            0% {
+                transform: translate(100%, -100%) scale(1);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(5%, -5%) scale(1.02);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes sweep-block-bottom-left {
+            0% {
+                transform: translate(-100%, 100%) scale(1);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-5%, 5%) scale(1.02);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes sweep-block-bottom-right {
+            0% {
+                transform: translate(100%, 100%) scale(1);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(5%, 5%) scale(1.02);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+        }
+        @keyframes letter-emerge {
+            0% {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            70% {
+                transform: translateY(10px);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        /* Classic Glitch Effect - Individual Character Style */
+        .classic-glitch {
+            position: relative;
+            color: white;
+            animation: glitch-skew 2s infinite linear alternate-reverse;
+        }
+
+        .classic-glitch::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 2px;
+            width: 100%;
+            height: 100%;
+            text-shadow: -2px 0 #ff00c1;
+            clip: rect(0px, 9999px, 120px, 0);
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+            background: transparent;
+        }
+
+        .classic-glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: -2px;
+            width: 100%;
+            height: 100%;
+            text-shadow: -2px 0 #00fff9, 2px 2px #ff00c1;
+            animation: glitch-anim2 2.5s infinite linear alternate-reverse;
+            background: transparent;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(0px, 9999px, 120px, 0); transform: skew(0.5deg) scale(1.02); }
+            8% { clip: rect(100px, 9999px, 20px, 0); transform: skew(-0.8deg) scale(0.98); }
+            16% { clip: rect(40px, 9999px, 80px, 0); transform: skew(1.2deg) scale(1.05); }
+            24% { clip: rect(80px, 9999px, 40px, 0); transform: skew(-1.5deg) scale(0.95); }
+            32% { clip: rect(20px, 9999px, 100px, 0); transform: skew(0.9deg) scale(1.03); }
+            40% { clip: rect(60px, 9999px, 60px, 0); transform: skew(-1.1deg) scale(0.97); }
+            48% { clip: rect(90px, 9999px, 30px, 0); transform: skew(1.8deg) scale(1.06); }
+            56% { clip: rect(10px, 9999px, 110px, 0); transform: skew(-0.7deg) scale(0.94); }
+            64% { clip: rect(70px, 9999px, 50px, 0); transform: skew(1.3deg) scale(1.04); }
+            72% { clip: rect(30px, 9999px, 90px, 0); transform: skew(-1.6deg) scale(0.96); }
+            80% { clip: rect(50px, 9999px, 70px, 0); transform: skew(0.6deg) scale(1.01); }
+            88% { clip: rect(110px, 9999px, 10px, 0); transform: skew(-0.9deg) scale(0.99); }
+            96% { clip: rect(15px, 9999px, 105px, 0); transform: skew(1.0deg) scale(1.02); }
+            100% { clip: rect(0px, 9999px, 120px, 0); transform: skew(0deg) scale(1); }
+        }
+
+        @keyframes glitch-anim2 {
+            0% { clip: rect(5px, 9999px, 115px, 0); transform: skew(-0.7deg) scale(0.96); }
+            8% { clip: rect(95px, 9999px, 25px, 0); transform: skew(1.5deg) scale(1.04); }
+            16% { clip: rect(35px, 9999px, 85px, 0); transform: skew(-1.8deg) scale(0.92); }
+            24% { clip: rect(75px, 9999px, 45px, 0); transform: skew(1.1deg) scale(1.07); }
+            32% { clip: rect(15px, 9999px, 105px, 0); transform: skew(-1.3deg) scale(0.95); }
+            40% { clip: rect(55px, 9999px, 65px, 0); transform: skew(2.0deg) scale(1.03); }
+            48% { clip: rect(85px, 9999px, 35px, 0); transform: skew(-0.9deg) scale(0.97); }
+            56% { clip: rect(25px, 9999px, 95px, 0); transform: skew(1.6deg) scale(1.05); }
+            64% { clip: rect(65px, 9999px, 55px, 0); transform: skew(-1.4deg) scale(0.93); }
+            72% { clip: rect(45px, 9999px, 75px, 0); transform: skew(1.7deg) scale(1.06); }
+            80% { clip: rect(105px, 9999px, 15px, 0); transform: skew(-0.8deg) scale(0.98); }
+            88% { clip: rect(50px, 9999px, 70px, 0); transform: skew(1.2deg) scale(1.02); }
+            96% { clip: rect(30px, 9999px, 90px, 0); transform: skew(-1.0deg) scale(0.99); }
+            100% { clip: rect(0px, 9999px, 120px, 0); transform: skew(0deg) scale(1); }
+        }
+
+        @keyframes glitch-skew {
+            0% { transform: skew(0deg); }
+            15% { transform: skew(0.5deg); }
+            30% { transform: skew(-0.8deg); }
+            45% { transform: skew(1.2deg); }
+            60% { transform: skew(-0.6deg); }
+            75% { transform: skew(0.9deg); }
+            90% { transform: skew(-0.3deg); }
+            100% { transform: skew(0deg); }
+        }
+        /* Laser Stripe Effects */
+        @keyframes laser-stripe-vertical {
+            0% {
+                transform: translateY(-100vh) scaleY(0);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(0) scaleY(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes laser-stripe-horizontal {
+            0% {
+                transform: translateX(-100vw) scaleX(0);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(0) scaleX(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes laser-stripe-diagonal {
+            0% {
+                transform: translate(-100vw, -100vh) rotate(45deg) scale(0);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0, 0) rotate(45deg) scale(1);
+                opacity: 0;
+            }
+        }
+
+        .laser-stripe-vertical {
+            position: absolute;
+            top: 0;
+            left: 20%;
+            width: 2px;
+            height: 100vh;
+            background: linear-gradient(to bottom, transparent, #00ffff, transparent);
+            box-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
+            animation: laser-stripe-vertical 0.8s ease-out forwards;
+            animation-delay: 3.5s;
+            opacity: 0;
+        }
+
+        .laser-stripe-horizontal {
+            position: absolute;
+            top: 30%;
+            left: 0;
+            width: 100vw;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #ff00ff, transparent);
+            box-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff;
+            animation: laser-stripe-horizontal 0.8s ease-out forwards;
+            animation-delay: 3.7s;
+            opacity: 0;
+        }
+
+        .laser-stripe-diagonal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 141vh; /* sqrt(2) * 100vh for diagonal */
+            background: linear-gradient(to bottom, transparent, #ffff00, transparent);
+            box-shadow: 0 0 20px #ffff00, 0 0 40px #ffff00;
+            animation: laser-stripe-diagonal 1s ease-out forwards;
+            animation-delay: 3.9s;
+            opacity: 0;
+            transform-origin: 0 0;
+        }
+
+        /* Four Corner Black Blocks Animation Classes */
+        .animate-sweep-block-top-left {
+            animation: sweep-block-top-left 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            animation-delay: 1s;
+        }
+        .animate-sweep-block-top-right {
+            animation: sweep-block-top-right 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            animation-delay: 1s;
+        }
+        .animate-sweep-block-bottom-left {
+            animation: sweep-block-bottom-left 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            animation-delay: 1s;
+        }
+        .animate-sweep-block-bottom-right {
+            animation: sweep-block-bottom-right 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            animation-delay: 1s;
+        }
+        .letter {
+            display: inline-block;
+            opacity: 0;
+            animation: letter-emerge 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            cursor: pointer;
+        }
+        .letter:hover {
+            transform: translateY(-8px);
+        }
+        .letter:nth-child(even):hover {
+            transform: translateY(8px);
+        }
+        body {
+            perspective: 1000px;
+        }
+        .parallax-container {
+            transform-style: preserve-3d;
+        }
+        .parallax-layer {
+            transform: translateZ(var(--parallax-depth, 0));
+        }
+        /* Superscript styling for the "th" above 47 */
+        .number-group { position: relative; display: inline-block; }
+        .number-group .sup-th {
+            position: absolute;
+            right: -0.08em;
+            top: -0.85em;
+            font-size: 0.28em;
+            line-height: 1;
+        }
+        /* Responsive title sizing */
+        .hero-title { font-size: clamp(1.8rem, 7vw, 7.5rem); line-height: 1.06; text-align: center; }
+        .hero-line { display: inline-flex; align-items: baseline; flex-wrap: nowrap; gap: 0.35em; white-space: nowrap; }
+        @media (max-width: 768px) { .hero-line { gap: 0.22em; } }
+    </style>
+</head>
+<body class="overflow-hidden bg-white">
+<div class="relative w-screen h-screen animate-background-morph parallax-container">
+<div class="absolute top-0 left-0 w-full h-full overflow-hidden">
+<!-- Four Corner Black Blocks that sweep and merge -->
+<div class="absolute top-0 left-0 w-1/2 h-1/2 bg-black animate-sweep-block-top-left"></div>
+<div class="absolute top-0 right-0 w-1/2 h-1/2 bg-black animate-sweep-block-top-right"></div>
+<div class="absolute bottom-0 left-0 w-1/2 h-1/2 bg-black animate-sweep-block-bottom-left"></div>
+<div class="absolute bottom-0 right-0 w-1/2 h-1/2 bg-black animate-sweep-block-bottom-right"></div>
+
+<!-- Laser Stripe Effects -->
+<div class="laser-stripe-vertical"></div>
+<div class="laser-stripe-horizontal"></div>
+<div class="laser-stripe-diagonal"></div>
+</div>
+<div class="absolute inset-0 flex flex-col items-center justify-center parallax-layer" style="--parallax-depth: 100px;">
+<h1 class="text-white hero-title font-bold uppercase tracking-[0.2em]" style="font-family: 'Space Grotesk', sans-serif;">
+<span class="hero-line">
+  <span class="letter" data-text="R" style="animation-delay: 2.5s;">R</span>
+  <span class="letter" data-text="E" style="animation-delay: 2.6s;">E</span>
+  <span class="letter" data-text="A" style="animation-delay: 2.7s;">A</span>
+  <span class="letter" data-text="D" style="animation-delay: 2.8s;">D</span>
+  <span class="letter" data-text="Y" style="animation-delay: 2.9s;">Y</span>
+  <span style="width: 0.6em;"></span>
+  <span class="letter" data-text="F" style="animation-delay: 3.05s;">F</span>
+  <span class="letter" data-text="O" style="animation-delay: 3.1s;">O</span>
+  <span class="letter" data-text="R" style="animation-delay: 3.15s;">R</span>
+ </span>
+</h1>
+<h2 class="text-white hero-title font-bold uppercase tracking-[0.2em] mt-6" style="font-family: 'Space Grotesk', sans-serif;">
+ <span class="hero-line">
+  <span class="number-group">
+    <span class="letter" data-text="4" style="animation-delay: 3.25s;">4</span>
+    <span class="letter" data-text="7" style="animation-delay: 3.3s;">7</span>
+    <span class="sup-th letter" data-text="th" style="animation-delay: 3.34s;">th</span>
+  </span>
+  <span style="width: 0.8em;"></span>
+  <span class="letter" data-text="B" style="animation-delay: 3.4s;">B</span>
+  <span class="letter" data-text="I" style="animation-delay: 3.45s;">I</span>
+  <span class="letter" data-text="R" style="animation-delay: 3.5s;">R</span>
+  <span class="letter" data-text="T" style="animation-delay: 3.55s;">T</span>
+  <span class="letter" data-text="H" style="animation-delay: 3.6s;">H</span>
+  <span class="letter" data-text="D" style="animation-delay: 3.65s;">D</span>
+  <span class="letter" data-text="A" style="animation-delay: 3.7s;">A</span>
+  <span class="letter" data-text="Y" style="animation-delay: 3.75s;">Y</span>
+ </span>
+</h2>
+</div>
+</div>
+<script>
+    // Function to apply intense whole-text glitch effect
+    function applyClassicGlitch() {
+        const letters = document.querySelectorAll('.letter');
+
+        // Apply glitch to ALL letters at once for intense effect
+        letters.forEach(letter => {
+            letter.classList.add('classic-glitch');
+        });
+
+        // Remove glitch from all letters after 2 seconds
+        setTimeout(() => {
+            letters.forEach(letter => {
+                letter.classList.remove('classic-glitch');
+                // Keep text static
+                letter.style.animation = 'none';
+                letter.style.opacity = '1';
+                letter.style.transform = 'translateY(0)';
+            });
+        }, 1000);
+    }
+
+    // Function to apply premium pixel-dance glitch effect sequentially
+    function applyGlitchEffect() {
+        const letters = document.querySelectorAll('.letter');
+        letters.forEach((letter, index) => {
+            setTimeout(() => {
+                letter.style.animation = 'glitch 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                // Reset animation after it completes with slight delay for smoothness
+                setTimeout(() => {
+                    letter.style.animation = 'none';
+                    letter.style.opacity = '1';
+                    letter.style.transform = 'translateY(0)';
+                }, 420);
+            }, index * 120); // Faster stagger - 120ms per letter for smoother pixel wave
+        });
+    }
+
+    // Function for occasional full-text pixel dance
+    function applyFullGlitch() {
+        const letters = document.querySelectorAll('.letter');
+        letters.forEach(letter => {
+            letter.style.animation = 'glitch 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            setTimeout(() => {
+                letter.style.animation = 'none';
+                letter.style.opacity = '1';
+                letter.style.transform = 'translateY(0)';
+            }, 370);
+        });
+    }
+
+    // Start effects after ALL initial text animations finish completely
+    setTimeout(() => {
+        // First, apply the classic individual glitch effect
+        applyClassicGlitch();
+
+        // Then start the premium pixel-dance effects after classic glitch finishes
+        setTimeout(() => {
+            applyGlitchEffect();
+
+            // Repeat sequential glitch every 6 seconds
+            setInterval(applyGlitchEffect, 6000);
+
+            // Occasionally trigger full-text pixel dance (every 12-15 seconds randomly)
+            setInterval(() => {
+                if (Math.random() > 0.5) { // 50% chance for full pixel dance
+                    setTimeout(applyFullGlitch, Math.random() * 1500);
+                }
+            }, 12000);
+        }, 8000); // Wait 8 seconds after classic glitch starts (4s duration + 4s buffer)
+
+    }, 5000); // Wait 5 seconds after text appears to start glitch effects
+</script>
+
+</body></html>
