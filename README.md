@@ -18,7 +18,7 @@ Deployed on Vercel: [View Live Site](https://your-vercel-url.vercel.app)
 
 ```
 47th-birthday-wish/
-├── seamless-birthday-experience.html  # Main experience page
+├── index.html                         # Main experience page
 ├── Third/Third.html                   # 3D cylinder gallery
 ├── Video/
 │   └── Birthday_vid.mp4              # Birthday video
